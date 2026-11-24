@@ -1,0 +1,61 @@
+import numpy as np
+from src.tensor_utils import (
+    cp_to_tensor_kb,
+    jennrich_cp,
+    khatri_rao,
+    match_and_score_factors,
+    corcondia,
+)
+
+
+def test_jennrich_exact_recovery():
+    """Verifica que jennrich_cp recupera factores y reconstruye T con error < 1e-12."""
+    rng = np.random.default_rng(123)
+    I, J, K, r = 10, 8, 6, 3
+    A_true = rng.standard_normal((I, r))
+    B_true = rng.standard_normal((J, r))
+    C_true = rng.standard_normal((K, r))
+
+    T = cp_to_tensor_kb(A_true, B_true, C_true)
+    A_est, B_est, C_est = jennrich_cp(T, r=r, seed=99)
+
+    T_rec = cp_to_tensor_kb(A_est, B_est, C_est)
+    rel_err = np.linalg.norm(T - T_rec) / np.linalg.norm(T)
+    assert rel_err < 1e-12
+
+    phi_A, _ = match_and_score_factors(A_true, A_est)
+    phi_B, _ = match_and_score_factors(B_true, B_est)
+    phi_C, _ = match_and_score_factors(C_true, C_est)
+    assert min(phi_A, phi_B, phi_C) > 1.0 - 1e-12
+
+
+def test_corcondia_noiseless_cp():
+    """Verifica que un tensor CP exacto tiene CORCONDIA = 100%."""
+    rng = np.random.default_rng(7)
+    A = rng.standard_normal((12, 3))
+    B = rng.standard_normal((9, 3))
+    C = rng.standard_normal((6, 3))
+    T = cp_to_tensor_kb(A, B, C)
+    cc = corcondia(T, np.ones(3), [A, B, C])
+    assert np.isclose(cc, 100.0, atol=1e-10)
+
+
+def test_flattening_rotation_destroys_rank_one():
+    """Verifica la Proposición 5.1: V * Q^{-T} remodelado a J x K deja de tener rango 1."""
+    rng = np.random.default_rng(2026)
+    J, K, r = 8, 4, 3
+    B = rng.standard_normal((J, r))
+    C = rng.standard_normal((K, r))
+    V = khatri_rao(C, B)
+
+    # Sin rotación: cada columna remodelada a J x K tiene rango 1
+    for m in range(r):
+        M_unrot = V[:, m].reshape(K, J).T
+        assert np.linalg.matrix_rank(M_unrot) == 1
+
+    # Con rotación genérica Q in GL_r(R): cada columna remodelada tiene rango r > 1
+    Q = rng.standard_normal((r, r))
+    V_rot = V @ np.linalg.inv(Q).T
+    for m in range(r):
+        M_rot = V_rot[:, m].reshape(K, J).T
+        assert np.linalg.matrix_rank(M_rot) == r
