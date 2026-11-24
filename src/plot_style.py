@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import matplotlib.pyplot as plt
 
 # Paleta apta para daltónicos (Okabe-Ito)
@@ -9,6 +10,13 @@ COLORS = {
     "hooi": "#CC79A7",     # Magenta para HOOI
     "bound": "#000000",    # Negro para cotas teóricas (ej. sqrt(3) o pi/4)
 }
+
+COLOR_CP = COLORS["cp"]
+COLOR_PCA = COLORS["pca"]
+COLOR_TUCKER = COLORS["tucker"]
+COLOR_EXTRA = COLORS["hooi"]
+COLOR_SKY = "#56B4E9"
+GEN_DIR = Path("paper") / "generated"
 
 
 def apply_paper_style():
@@ -35,3 +43,8 @@ def save_paper_figure(fig: plt.Figure, filename: str, out_dir: str = "figures_ex
     path = os.path.join(out_dir, f"{filename}.pdf")
     fig.savefig(path, format="pdf", bbox_inches="tight")
     print(f"[OK] Figura exportada en: {path}")
+
+
+def save_figure(fig: plt.Figure, filename: str) -> None:
+    """Compatibility wrapper for Persona-A experiments."""
+    save_paper_figure(fig, filename)
